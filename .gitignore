@@ -1,0 +1,30 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual Environments
+venv/
+.venv/
+
+# Environment Variables
+.env
+
+# VS Code
+.vscode/
+
+# Docker
+*.log
+
+# Streamlit
+.streamlit/
+
+# OS Files
+Thumbs.db
+.DS_Store
+
+# Build Files
+dist/
+build/
+*.egg-info/
