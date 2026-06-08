@@ -1,3 +1,5 @@
+version: "3.8"
+
 services:
 
   zookeeper:
@@ -25,24 +27,10 @@ services:
     environment:
       KAFKA_BROKER_ID: 1
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-
       KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092
       KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
-
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
-    healthcheck:
-      test:
-        [
-          "CMD",
-          "kafka-topics",
-          "--bootstrap-server",
-          "localhost:9092",
-          "--list"
-        ]
-      interval: 15s
-      timeout: 10s
-      retries: 10
 
   flink-jobmanager:
     image: flink:1.20
@@ -51,79 +39,52 @@ services:
     ports:
       - "8081:8081"
     environment:
-      JOB_MANAGER_RPC_ADDRESS: flink-jobmanager
-    healthcheck:
-      test:
-        [
-          "CMD",
-          "wget",
-          "--spider",
-          "-q",
-          "http://localhost:8081"
-        ]
-      interval: 15s
-      timeout: 10s
-      retries: 10
+      - |
+        FLINK_PROPERTIES=
+        jobmanager.rpc.address: flink-jobmanager
+        rest.address: flink-jobmanager
+        parallelism.default: 1
 
   flink-taskmanager:
     image: flink:1.20
     container_name: flink-taskmanager
     command: taskmanager
     depends_on:
-      flink-jobmanager:
-        condition: service_healthy
+      - flink-jobmanager
     environment:
-      JOB_MANAGER_RPC_ADDRESS: flink-jobmanager
-    healthcheck:
-      test:
-        [
-          "CMD",
-          "sh",
-          "-c",
-          "ps aux | grep TaskManagerRunner"
-        ]
-      interval: 15s
-      timeout: 10s
-      retries: 10
+      - |
+        FLINK_PROPERTIES=
+        jobmanager.rpc.address: flink-jobmanager
+        taskmanager.numberOfTaskSlots: 2
+        parallelism.default: 1
 
   producer:
     build: ./producer
     container_name: producer
     depends_on:
       kafka:
-        condition: service_healthy
+        condition: service_started
     env_file:
       - .env
-    healthcheck:
-      test:
-        [
-          "CMD",
-          "python",
-          "-c",
-          "print('producer healthy')"
-        ]
-      interval: 30s
-      timeout: 10s
-      retries: 5
+
+  flink-job:
+    build: ./flink-job
+    container_name: flink-job
+    depends_on:
+      kafka:
+        condition: service_started
+      flink-jobmanager:
+        condition: service_started
+    env_file:
+      - .env
 
   dashboard:
     build: ./dashboard
     container_name: dashboard
-    depends_on:
-      kafka:
-        condition: service_healthy
     ports:
       - "8501:8501"
+    depends_on:
+      kafka:
+        condition: service_started
     env_file:
       - .env
-    healthcheck:
-      test:
-        [
-          "CMD",
-          "curl",
-          "-f",
-          "http://localhost:8501"
-        ]
-      interval: 30s
-      timeout: 10s
-      retries: 5
