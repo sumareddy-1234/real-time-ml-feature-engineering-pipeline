@@ -2,6 +2,8 @@
 
 This repository contains a production-style, real-time feature engineering pipeline designed for low-latency machine learning models (e.g. content recommendations, personalization). It uses **Apache Kafka** as a high-throughput event bus and state store, **Apache Flink** for stateful stream processing (windowing, joins, watermarking), and a **Streamlit** dashboard for real-time observability.
 
+Vedio demo:https://www.loom.com/share/59f80da4ae4a4109998e62e0cad2b4fb
+
 ## System Architecture
 
 The pipeline orchestrates the following components:
