@@ -28,3 +28,11 @@ Thumbs.db
 dist/
 build/
 *.egg-info/
+
+# Java/Maven
+target/
+*.class
+
+# IDE
+.idea/
+*.iml

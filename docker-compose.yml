@@ -1,10 +1,9 @@
-version: "3.8"
-
 services:
 
   zookeeper:
     image: confluentinc/cp-zookeeper:7.6.1
     container_name: zookeeper
+    restart: unless-stopped
     environment:
       ZOOKEEPER_CLIENT_PORT: 2181
       ZOOKEEPER_TICK_TIME: 2000
@@ -19,6 +18,7 @@ services:
   kafka:
     image: confluentinc/cp-kafka:7.6.1
     container_name: kafka
+    restart: unless-stopped
     depends_on:
       zookeeper:
         condition: service_healthy
@@ -31,60 +31,118 @@ services:
       KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "kafka-topics",
+          "--bootstrap-server",
+          "localhost:9092",
+          "--list"
+        ]
+      interval: 15s
+      timeout: 10s
+      retries: 10
 
   flink-jobmanager:
     image: flink:1.20
     container_name: flink-jobmanager
+    restart: unless-stopped
     command: jobmanager
     ports:
       - "8081:8081"
+    volumes:
+      - ./jars/flink-sql-connector-kafka-3.3.0-1.20.jar:/opt/flink/lib/flink-sql-connector-kafka-3.3.0-1.20.jar
     environment:
-      - |
-        FLINK_PROPERTIES=
+      FLINK_PROPERTIES: |
         jobmanager.rpc.address: flink-jobmanager
         rest.address: flink-jobmanager
         parallelism.default: 1
+        taskmanager.numberOfTaskSlots: 2
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "-q",
+          "-O",
+          "-",
+          "http://localhost:8081/overview"
+        ]
+      interval: 15s
+      timeout: 10s
+      retries: 10
 
   flink-taskmanager:
     image: flink:1.20
     container_name: flink-taskmanager
+    restart: unless-stopped
     command: taskmanager
+    volumes:
+      - ./jars/flink-sql-connector-kafka-3.3.0-1.20.jar:/opt/flink/lib/flink-sql-connector-kafka-3.3.0-1.20.jar
     depends_on:
-      - flink-jobmanager
+      flink-jobmanager:
+        condition: service_healthy
     environment:
-      - |
-        FLINK_PROPERTIES=
+      FLINK_PROPERTIES: |
         jobmanager.rpc.address: flink-jobmanager
         taskmanager.numberOfTaskSlots: 2
         parallelism.default: 1
+    healthcheck:
+      test: ["CMD", "sh", "-c", "ps aux | grep TaskManagerRunner"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
 
   producer:
     build: ./producer
     container_name: producer
+    restart: unless-stopped
     depends_on:
       kafka:
-        condition: service_started
+        condition: service_healthy
     env_file:
       - .env
+    healthcheck:
+      test: ["CMD-SHELL", "pgrep -f producer.py || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
 
   flink-job:
     build: ./flink-job
     container_name: flink-job
+    restart: unless-stopped
     depends_on:
       kafka:
-        condition: service_started
+        condition: service_healthy
       flink-jobmanager:
-        condition: service_started
+        condition: service_healthy
+      flink-taskmanager:
+        condition: service_healthy
     env_file:
       - .env
+    volumes:
+      - ./jars/flink-sql-connector-kafka-3.3.0-1.20.jar:/opt/flink/lib/flink-sql-connector-kafka-3.3.0-1.20.jar
+    healthcheck:
+      test: ["CMD", "sh", "-c", "ps aux | grep java"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
 
   dashboard:
     build: ./dashboard
     container_name: dashboard
+    restart: unless-stopped
     ports:
       - "8501:8501"
     depends_on:
       kafka:
-        condition: service_started
+        condition: service_healthy
     env_file:
       - .env
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:8501/healthz"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
