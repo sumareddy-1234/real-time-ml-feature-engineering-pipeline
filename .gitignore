@@ -36,3 +36,6 @@ target/
 # IDE
 .idea/
 *.iml
+
+jars/
+*.jar
