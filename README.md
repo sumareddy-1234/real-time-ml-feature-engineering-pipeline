@@ -36,14 +36,14 @@ The pipeline orchestrates the following components:
 2. **Start the Pipeline**:
    Build and start all containerized services:
    ```bash
-   docker-compose up --build -d
+   docker compose up --build -d
    ```
    *Note: Flink compilation is done inside a Maven builder container during startup, meaning no Java/Maven installation is required on the host system.*
 
 3. **Monitor Container Health**:
    All services are configured with healthchecks to ensure stable startup. Verify health status using:
    ```bash
-   docker-compose ps
+   docker compose ps
    ```
 
 4. **Access the Observability Dashboard**:
@@ -72,7 +72,7 @@ Exposed environment configurations include:
 1. **Verify Topic Properties**:
    Check if topic compaction is enabled on `content-metadata` and `feature-store`:
    ```bash
-   docker-compose exec kafka kafka-topics --bootstrap-server localhost:9092 --describe --topic feature-store
+   docker compose exec kafka kafka-topics --bootstrap-server localhost:9092 --describe --topic feature-store
    ```
    You should see `cleanup.policy=compact` in the configuration.
 
